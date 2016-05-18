@@ -1,0 +1,169 @@
+
+
+#ifdef _MSC_VER
+#pragma comment(lib, "Kernel32.lib")
+#endif
+
+#if WORKER_THREADS > 0
+
+thrd_t workerIds[WORKER_THREADS];
+ mtx_t workerMutexs[WORKER_THREADS];
+int workerInds[WORKER_THREADS];
+ bool workerJobs[WORKER_THREADS];
+
+
+#ifdef _WIN32
+DWORD threadIds[WORKER_THREADS];
+HANDLE threadHandles[WORKER_THREADS];
+#endif
+#endif
+
+#if WORKER_THREADS > 0
+ int worker_func(void *data) {
+   int ind=*((int*)data);
+
+   while(1) {
+
+     mtx_lock(&workerMutexs[ind]);
+
+     if(workerJobs[ind]) {
+
+
+        printf("bla %i\n",ind);
+
+
+       render_scene(screenUpdateFroms[ind+1],
+                    screenUpdateTos[ind+1],
+
+                    SCREEN_WIDTH,SCREEN_HEIGHT,
+                    aspectRatio,yFov,
+                    camera.interpPosf,
+                    camera.rotMatf,
+                    screenBitmap,
+
+                    raycastStacks[ind+1],
+                    traverseStacks[ind+1]);
+
+       mtx_unlock(&workerMutexs[ind]);
+     } else {
+
+     struct timespec duration = {.tv_sec = 0, .tv_nsec = 2}; 
+     thrd_sleep(&duration, NULL);
+     }
+     workerJobs[ind]=false;
+     mtx_unlock(&workerMutexs[ind]);
+   }
+
+   return 0;
+ }
+int worker_func2(void *data) {
+  int ind=*((int*)data);
+
+  render_scene(screenUpdateFroms[ind+1],
+               screenUpdateTos[ind+1],
+
+               SCREEN_WIDTH,SCREEN_HEIGHT,
+               aspectRatio,yFov,
+               camera.interpPosf,
+               camera.rotMatf,
+               screenBitmap,
+
+               raycastStacks[ind+1],
+               traverseStacks[ind+1]);
+
+
+   //  struct timespec duration = {.tv_sec = 0, .tv_nsec = ind*100}; 
+     //thrd_sleep(&duration, NULL);
+
+  return 0;
+}
+#ifdef _WIN32
+static DWORD WINAPI threadProc(  LPVOID lpParameter ) {
+  int ind=*((int*)lpParameter);
+  while(1) {
+    render_scene(screenUpdateFroms[ind+1],
+      screenUpdateTos[ind+1],
+
+      SCREEN_WIDTH,SCREEN_HEIGHT,
+      aspectRatio,yFov,
+      camera.interpPosf,
+      camera.rotMatf,
+      screenBitmap,
+
+      raycastStacks[ind+1],
+      traverseStacks[ind+1]);
+  }
+  return 0;
+}
+#endif
+#endif
+
+
+  //start worker threads
+#if WORKER_THREADS > 0
+  // for(i=0;i<WORKER_THREADS;i++) {
+  // //   workerJobs[i]=true;
+  // //   mtx_unlock(&workerMutexs[i]);
+  // }
+  for(i=0;i<WORKER_THREADS;i++) {
+    // if(thrd_error == thrd_create(&workerIds[i], worker_func2, &workerInds[i])) {
+    //   fprintf(stderr, "Thread creation failed.\n");
+    // }
+
+#ifdef _WIN32
+ //   threadHandles[i]=CreateThread(NULL,0,threadProc,&workerInds[i],0,&threadIds[i]);
+
+ //   if(threadHandles[i]==NULL) {
+ //     fprintf(stderr, "Thread creation failed.\n");
+ //   }
+#endif
+  }
+
+#endif
+#if WORKER_THREADS > 0
+//#ifdef _WIN32
+  //WaitForMultipleObjects(WORKER_THREADS,threadHandles,TRUE,INFINITE);
+//#endif
+  for(i=0;i<WORKER_THREADS;i++) {
+   // WaitForSingleObject(threadHandles[i], INFINITE);
+    // int r;
+    // if(thrd_success!=thrd_join(workerIds[i], &r)) {
+
+
+    //   fprintf(stderr, "thread join failed.\n");
+    // }
+    // mtx_lock(&workerMutexs[i]);
+
+  }
+#endif
+int i;
+#if WORKER_THREADS > 0
+
+
+  for(i=0;i<WORKER_THREADS;i++) {
+    workerInds[i]=i;
+    // workerJobs[i]=false;
+
+    // if(thrd_error == mtx_init(&workerMutexs[i], mtx_plain)) {
+    //   fprintf(stderr, "Mutex creation failed.\n");
+    //   return 1;
+    // }
+
+    // if(thrd_success!=mtx_trylock(&workerMutexs[i])) {
+    //   fprintf(stderr, "Mutex lock failed.\n");
+
+    // }
+
+    // if(thrd_error == thrd_create(&workerIds[i], worker_func, &workerInds[i])) {
+    //   fprintf(stderr, "Thread creation failed.\n");
+    // }
+#ifdef _WIN32
+    threadHandles[i]=CreateThread(NULL,0,threadProc,&workerInds[i],CREATE_SUSPENDED,&threadIds[i]);
+
+    if(threadHandles[i]==NULL) {
+      fprintf(stderr,"Thread creation failed.\n");
+    }
+#endif
+
+  }
+#endif
